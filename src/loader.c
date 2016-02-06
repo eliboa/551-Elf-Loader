@@ -20,27 +20,6 @@ void _start()
 {
 	/* Get a safer stack */
 	asm(
-/* WiiU ELF Loader by FIX94 */
-
-#include "loader.h"
-
-#if (VER==550 || VER==540)
-#define BUFFER_ADDR 0x1acd7814
-#elif (VER==532)
-#define BUFFER_ADDR 0x1b201814
-#else
-#define BUFFER_ADDR 0x1dd7b814
-#endif
-
-#define OSTHREAD_SIZE	0x1000
-
-void myMemThread(int sth1, int *sth2);
-void doexit();
-
-void _start()
-{
-	/* Get a safer stack */
-	asm(
 		"lis %r1, 0x1ab5 ;"
 		"ori %r1, %r1, 0xd138 ;"
 	);
@@ -219,7 +198,7 @@ void myMemThread(int sth1, int *sth2)
 
 	int resp = 404;
 	curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &resp);
-	if(resp != 200);
+	if(resp != 200)
 		OSFatal("resp is 200");
 
 	/* Cleanup to gain back memory */
@@ -555,8 +534,6 @@ void myMemThread(int sth1, int *sth2)
 	int ret = curl_easy_perform(curl_handle);
 	if(ret)
 		OSFatal("fails at if(ret)");
-	
-	doexit();
 	
 	/* Do error checks */
 	int datalen = *(int*)0xF5FFFFFC;
