@@ -129,6 +129,12 @@ int write_data(void *buffer, int size, int nmemb, void *userp)
 #define CURLOPT_WRITEFUNCTION 20011
 #define CURLINFO_RESPONSE_CODE 0x200002
 
+#define CURL_GLOBAL_SSL (1<<0)
+#define CURL_GLOBAL_WIN32 (1<<1)
+#define CURL_GLOBAL_ALL (CURL_GLOBAL_SSL|CURL_GLOBAL_WIN32)
+#define CURL_GLOBAL_NOTHING 0
+#define CURL_GLOBAL_DEFAULT CURL_GLOBAL_ALL
+
 void myMemThread(int sth1, int *sth2)
 {
 	unsigned int coreinit_handle = *(unsigned int*)0xF5FFFFEC;
@@ -162,10 +168,35 @@ void myMemThread(int sth1, int *sth2)
 	memcpy(ptr+1, "boot.elf", 9);
 
 	/* Acquire and setup libcurl */
+	/* also fix our internet issues, hopefully */
+    unsigned int nn_ac_handle;
+    OSDynLoad_Acquire("nn_ac.rpl", &nn_ac_handle);
+
+    int(*ACInitialize)();
+    int(*ACGetStartupId) (unsigned int *id);
+    int(*ACConnectWithConfigId) (unsigned int id);
+
+    OSDynLoad_FindExport(nn_ac_handle, 0, "ACInitialize", &ACInitialize);
+    OSDynLoad_FindExport(nn_ac_handle, 0, "ACGetStartupId", &ACGetStartupId);   
+    OSDynLoad_FindExport(nn_ac_handle, 0, "ACConnectWithConfigId",&ACConnectWithConfigId);
+
+    ACInitialize();
+    int theid;
+    ACGetStartupId(&theid);
+    ACConnectWithConfigId(theid);   
+
+    /*  Initialize Sockets  */
+
+    unsigned int nsysnet_handle;
+    OSDynLoad_Acquire("nsysnet", &nsysnet_handle);
+    int(*socket_lib_init)();
+    OSDynLoad_FindExport(nsysnet_handle, 0, "socket_lib_init", &socket_lib_init);
+    socket_lib_init();	
+	
 	uint32_t libcurl_handle;
 	OSDynLoad_Acquire("coreinit.rpl", &coreinit_handle);
 	OSDynLoad_Acquire("nlibcurl.rpl", &libcurl_handle);	
-	
+	int(*curl_global_init)(int opts);
 	void* (*curl_easy_init)();
 	void (*curl_easy_cleanup)(void *handle);
 	void (*curl_easy_setopt)(void *handle, uint32_t param, void *op);
@@ -176,6 +207,9 @@ void myMemThread(int sth1, int *sth2)
 	OSDynLoad_FindExport(libcurl_handle, 0, "curl_easy_setopt", &curl_easy_setopt);
 	OSDynLoad_FindExport(libcurl_handle, 0, "curl_easy_perform", &curl_easy_perform);
 	OSDynLoad_FindExport(libcurl_handle, 0, "curl_easy_getinfo", &curl_easy_getinfo);
+    OSDynLoad_FindExport(libcurl_handle, 0, "curl_global_init", &curl_global_init);
+	
+	curl_global_init(CURL_GLOBAL_ALL); // this should fix the connection issue
 	
 	*(int*)0xF5FFFFFC = 0;
 	void *curl_handle = curl_easy_init();
